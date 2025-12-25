@@ -2,7 +2,7 @@ name = "tradingview-router"
 main = "src/worker.js"
 compatibility_date = "2024-01-01"
 
-account_id = "${CLOUDFLARE_ACCOUNT_ID}"
+account_id = "b585eb51bdcfff8d3b5b708b954bd528"
 
 [vars]
 TRADINGVIEW_SECRET = "a7f3e2c9b1d4f6a8e5c2b9f3d7a1e4c6b8f2d5a9e3c7f1b4d8a2e6c9f3a5b7"
