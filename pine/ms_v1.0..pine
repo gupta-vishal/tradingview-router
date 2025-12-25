@@ -1,0 +1,163 @@
+//@version=6
+strategy("MS V1.0", process_orders_on_close = true, overlay = true)
+
+// ===============================
+// User Inputs
+// ===============================
+inv         = input.bool(false, "Inverse Trading")
+tradeMode   = input.string("Both", "Trade Mode", options = ["Long", "Short", "Both"])
+contractsL  = input.float(2, "Contracts Long")
+contractsS  = input.float(1, "Contracts Short")
+
+// Risk Management
+tpPoints    = input.float(500, "Take Profit (points)")
+slPoints    = input.float(500, "Stop Loss (points)")
+trailStart  = input.float(50, "Trailing Start (points)")
+trailOffset = input.float(20, "Trailing Offset (points)")
+
+// Cooldown & Profit Protection
+cooldownEnabled = input.bool(true, "Cooldown after 2 losses")
+cooldownBars    = input.int(5, "Cooldown bars")
+profitCheck     = input.bool(true, "Close if not profitable after X bars")
+profitBars      = input.int(5, "Bars to check profit")
+
+// Market Close Settings
+sessionZone = input.string("UTC-5", title="Session Time Zone")
+closeHour   = input.int(14, "Close Hour", minval=0, maxval=23)
+closeMinute = input.int(59, "Close Minute", minval=0, maxval=59)
+enableClose = input.bool(true, "Enable Market Close")
+
+// MA Settings
+period   = input.int(14, "Length", minval=1)
+mode     = input.string("Fast", "Calculation Mode", options=["Balanced", "Fast", "Slow"])
+maType   = input.string("WMA", "MA Type", options=["EMA","DEMA","TEMA","WMA","VWMA","SMA","SMMA","HMA","LSMA","McGinley"])
+
+// ===============================
+// Helper Functions
+// ===============================
+ma(type, src, len) =>
+    switch type
+        "SMA"      => ta.sma(src, len)
+        "EMA"      => ta.ema(src, len)
+        "DEMA"     => 2 * ta.ema(src, len) - ta.ema(ta.ema(src, len), len)
+        "TEMA"     =>
+            e = ta.ema(src, len)
+            3 * (e - ta.ema(e, len)) + ta.ema(ta.ema(e, len), len)
+        "WMA"      => ta.wma(src, len)
+        "VWMA"     => ta.vwma(src, len)
+        "SMMA"     =>
+            w = ta.wma(src, len)
+            sma_fallback = ta.sma(src, len)
+            na(w[1]) ? sma_fallback : (w[1] * (len - 1) + src) / len
+        "HMA"      => ta.wma(2 * ta.wma(src, len/2) - ta.wma(src, len), math.round(math.sqrt(len)))
+        "LSMA"     => ta.linreg(src, len, 0)
+        "McGinley" =>
+            mg = 0.0
+            ema_fallback = ta.ema(src, len)
+            mg := na(mg[1]) ? ema_fallback : mg[1] + (src - mg[1]) / (len * math.pow(src/mg[1], 4))
+            mg
+        => ta.sma(src, len)
+
+// ===============================
+// Sentiment Calculation
+// ===============================
+len = math.ceil(period / 4)
+BarHigh  = ma(maType, high, len)
+BarLow   = ma(maType, low, len)
+BarClose = ma(maType, close, len)
+BarOpen  = ma(maType, open, len)
+
+BarRange   = math.max(BarHigh - BarLow, 1)
+GroupHigh  = ta.highest(high, period)
+GroupLow   = ta.lowest(low, period)
+GroupOpen  = open[period - 1]
+GroupRange = math.max(GroupHigh - GroupLow, 1)
+
+BarBull   = (BarClose - BarLow + BarHigh - BarOpen) / 2 / BarRange
+BarBear   = (BarHigh - BarClose + BarOpen - BarLow) / 2 / BarRange
+GroupBull = (BarClose - GroupLow + GroupHigh - GroupOpen) / 2 / GroupRange
+GroupBear = (GroupHigh - BarClose + GroupOpen - GroupLow) / 2 / GroupRange
+
+calcBull = mode == "Balanced" ? (BarBull + GroupBull)/2 : mode == "Fast" ? BarBull : GroupBull
+calcBear = mode == "Balanced" ? (BarBear + GroupBear)/2 : mode == "Fast" ? BarBear : GroupBear
+
+Bull = ta.sma(calcBull, period)
+Bear = ta.sma(calcBear, period)
+diff = Bull - Bear
+
+// ===============================
+// Trade Logic
+// ===============================
+var lossCount = 0
+var entryBar  = 0
+
+longAllowed  = tradeMode == "Both" or tradeMode == "Long"
+shortAllowed = tradeMode == "Both" or tradeMode == "Short"
+
+barsSinceActive = ta.barssince(strategy.position_size != 0)
+cooldownOK   = not cooldownEnabled or lossCount < 2 or barsSinceActive >= cooldownBars
+
+colorSentiment = Bull > Bear ? (Bull >= Bull[1] ? color.teal : color.lime) : (Bear >= Bear[1] ? color.maroon : color.red)
+plot(diff, "Sentiment", colorSentiment, 2, plot.style_columns)
+
+// ===============================
+// ENTRY CONDITIONS + ALERTS
+// ===============================
+if (colorSentiment == color.teal or colorSentiment == color.lime) and barstate.isconfirmed and longAllowed and cooldownOK
+    entryBar := bar_index
+    if not inv
+        strategy.entry("Long", strategy.long, qty=contractsL, limit=close - syminfo.mintick)
+        alert('{"symbol":"{{ticker}}","side":"buy","qty":{{strategy.order.contracts}},"price":{{close}},"order_id":"long_entry","timestamp":"{{timenow}}"}', alert.freq_once_per_bar_close)
+    else
+        strategy.entry("Short", strategy.short, qty=contractsS, limit=close + syminfo.mintick)
+        alert('{"symbol":"{{ticker}}","side":"sell","qty":{{strategy.order.contracts}},"price":{{close}},"order_id":"inv_short_entry","timestamp":"{{timenow}}"}', alert.freq_once_per_bar_close)
+
+if (colorSentiment == color.maroon or colorSentiment == color.red) and barstate.isconfirmed and shortAllowed and cooldownOK
+    entryBar := bar_index
+    if not inv
+        strategy.entry("Short", strategy.short, qty=contractsS, limit=close + syminfo.mintick)
+        alert('{"symbol":"{{ticker}}","side":"sell","qty":{{strategy.order.contracts}},"price":{{close}},"order_id":"short_entry","timestamp":"{{timenow}}"}', alert.freq_once_per_bar_close)
+    else
+        strategy.entry("Long", strategy.long, qty=contractsL, limit=close - syminfo.mintick)
+        alert('{"symbol":"{{ticker}}","side":"buy","qty":{{strategy.order.contracts}},"price":{{close}},"order_id":"inv_long_entry","timestamp":"{{timenow}}"}', alert.freq_once_per_bar_close)
+
+// ===============================
+// RISK MANAGEMENT + ALERTS
+// ===============================
+if strategy.position_size > 0 and bar_index - entryBar == 1 and close <= strategy.position_avg_price - (slPoints * syminfo.mintick)/2
+    strategy.close_all("Half SL")
+    alert('{"symbol":"{{ticker}}","side":"sell","qty":{{strategy.position_size}},"price":{{close}},"order_id":"half_sl","timestamp":"{{timenow}}"}', alert.freq_once_per_bar_close)
+
+if strategy.position_size < 0 and bar_index - entryBar == 1 and close >= strategy.position_avg_price + (slPoints * syminfo.mintick)/2
+    strategy.close_all("Half SL")
+    alert('{"symbol":"{{ticker}}","side":"buy","qty":{{strategy.position_size}},"price":{{close}},"order_id":"half_sl","timestamp":"{{timenow}}"}', alert.freq_once_per_bar_close)
+
+strategy.exit("Exit Long", "Long", profit=tpPoints, loss=slPoints, trail_points=trailStart, trail_offset=trailOffset)
+strategy.exit("Exit Short", "Short", profit=tpPoints, loss=slPoints, trail_points=trailStart, trail_offset=trailOffset)
+
+// Profit Protection
+if profitCheck and strategy.position_size > 0 and bar_index - entryBar >= profitBars and close < strategy.position_avg_price + (5 * syminfo.mintick)
+    strategy.close_all("Not in Profit")
+    alert('{"symbol":"{{ticker}}","side":"sell","qty":{{strategy.position_size}},"price":{{close}},"order_id":"profit_protect_long","timestamp":"{{timenow}}"}', alert.freq_once_per_bar_close)
+
+if profitCheck and strategy.position_size < 0 and bar_index - entryBar >= profitBars and close > strategy.position_avg_price - (5 * syminfo.mintick)
+    strategy.close_all("Not in Profit")
+    alert('{"symbol":"{{ticker}}","side":"buy","qty":{{strategy.position_size}},"price":{{close}},"order_id":"profit_protect_short","timestamp":"{{timenow}}"}', alert.freq_once_per_bar_close)
+
+// ===============================
+// MARKET CLOSE LOGIC + ALERT
+// ===============================
+isCloseTime = (hour(time, sessionZone) == closeHour) and (minute(time, sessionZone) == closeMinute)
+bgcolor(isCloseTime ? #2195f35d : na, title="Market Close")
+
+if isCloseTime and enableClose and barstate.isconfirmed
+    strategy.close_all("Market Close")
+    alert('{"symbol":"{{ticker}}","side":"{{strategy.position_size > 0 ? "sell" : "buy"}}","qty":{{strategy.position_size}},"price":{{close}},"order_id":"market_close","timestamp":"{{timenow}}"}', alert.freq_once_per_bar_close)
+
+// ===============================
+// LOSS TRACKING
+// ===============================
+if strategy.losstrades > strategy.losstrades[1]
+    lossCount += 1
+if strategy.wintrades > strategy.wintrades[1]
+    lossCount := 0
