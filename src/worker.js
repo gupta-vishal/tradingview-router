@@ -67,6 +67,9 @@ async function sendIronbeamOrder(body, env) {
     waitForOrderId: true
   });
 
+  console.log("Ironbeam payload:", payload);
+  console.log("Ironbeam token:", token);
+
   const res = await fetch(endpoint, {
     method: "POST",
     headers: {
@@ -75,6 +78,8 @@ async function sendIronbeamOrder(body, env) {
     },
     body: payload
   });
+
+  
 
   const text = await res.text();
   console.log("Ironbeam response:", text);
