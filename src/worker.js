@@ -46,57 +46,32 @@ async function sendIronbeamWithProtection(body, env) {
 
 
 async function sendIronbeamOrder(body, env) {
+  const token = await ironbeamAuth(env);
+
   const endpoint = `https://demo.ironbeamapi.com/v2/order/${env.IRONBEAM_USER_ID}/place`;
 
-  // Normalize side safely
   const side = String(body.side || "")
     .trim()
     .replace(/"/g, "")
     .toUpperCase();
 
-  // Convert TradingView symbol → Ironbeam exchSym
   const exchSym = `XCME:${body.symbol}`;
 
-  // Build Ironbeam payload
   const payload = JSON.stringify({
     accountId: env.IRONBEAM_ACCOUNT_ID,
     exchSym,
     side,
     quantity: Number(body.qty),
     orderType: "MARKET",
-    duration: "1",
+    duration: "0",
     waitForOrderId: true
   });
-
-  const timestamp = Date.now().toString();
-
-  // HMAC signature
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(env.IRONBEAM_API_SECRET),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-
-  const signatureBuffer = await crypto.subtle.sign(
-    "HMAC",
-    key,
-    encoder.encode(timestamp + payload)
-  );
-
-  const signature = [...new Uint8Array(signatureBuffer)]
-    .map(b => b.toString(16).padStart(2, "0"))
-    .join("");
 
   const res = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-API-KEY": env.IRONBEAM_API_KEY,
-      "X-API-TIMESTAMP": timestamp,
-      "X-API-SIGNATURE": signature
+      "Authorization": `Bearer ${token}`
     },
     body: payload
   });
@@ -109,7 +84,27 @@ async function sendIronbeamOrder(body, env) {
   }
 
   return text;
+
 }
+
+async function ironbeamAuth(env) {
+  const res = await fetch("https://demo.ironbeamapi.com/v2/auth", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      username: env.IRONBEAM_USERNAME,
+      password: env.IRONBEAM_PASSWORD
+    })
+  });
+
+  if (!res.ok) {
+    throw new Error("Ironbeam auth failed: " + await res.text());
+  }
+
+  const data = await res.json();
+  return data.token;
+}
+
 
 async function retry(fn, retries = 5, baseDelay = 300) {
   let attempt = 0;
