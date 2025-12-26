@@ -46,16 +46,29 @@ async function sendIronbeamWithProtection(body, env) {
 
 
 async function sendIronbeamOrder(body, env) {
-  const endpoint = "https://demo.ironbeam.com/v1/order"; // replace with demo/live
+  const endpoint = `https://demo.ironbeamapi.com/v2/order/${env.IRONBEAM_USER_ID}/place`;
+
+  // Normalize side safely
+  const side = String(body.side || "")
+    .trim()
+    .replace(/"/g, "")
+    .toUpperCase();
+
+  // Convert TradingView symbol → Ironbeam exchSym
+  const exchSym = `XCME:${body.symbol}`;
+
+  // Build Ironbeam payload
+  const payload = JSON.stringify({
+    accountId: env.IRONBEAM_ACCOUNT_ID,
+    exchSym,
+    side,
+    quantity: Number(body.qty),
+    orderType: "MARKET",
+    duration: "1",
+    waitForOrderId: true
+  });
 
   const timestamp = Date.now().toString();
-  const payload = JSON.stringify({
-    symbol: body.symbol,
-    side: body.side.toUpperCase(), // buy → BUY
-    quantity: Number(body.qty),
-    type: "MARKET",
-    time_in_force: "GTC"
-  });
 
   // HMAC signature
   const encoder = new TextEncoder();
