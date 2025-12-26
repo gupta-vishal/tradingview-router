@@ -8,3 +8,19 @@ account_id = "b585eb51bdcfff8d3b5b708b954bd528"
 TRADINGVIEW_SECRET = "a7f3e2c9b1d4f6a8e5c2b9f3d7a1e4c6b8f2d5a9e3c7f1b4d8a2e6c9f3a5b7"
 IRONBEAM_API_KEY = "your-key"
 IRONBEAM_API_SECRET = "your-secret"
+
+
+[observability]
+enabled = false
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+persist = true
+invocation_logs = true
+
+[observability.traces]
+enabled = true
+persist = true
+head_sampling_rate = 1
