@@ -107,30 +107,30 @@ if (colorSentiment == color.teal or colorSentiment == color.lime) and barstate.i
     entryBar := bar_index
     if not inv
         strategy.entry("Long", strategy.long, qty=contractsL, limit=close - syminfo.mintick)
-        alert('{"symbol":"{{ticker}}","side":"buy","qty":{{strategy.order.contracts}},"price":{{close}},"order_id":"long_entry","timestamp":"{{timenow}}"}', alert.freq_once_per_bar_close)
+        alert('{"symbol":"{{ticker}}","side":"buy","qty":{{strategy.order.contracts}},"price":{{close}},"order_id":"long_entry","timestamp":"{{timenow}}","secret":"a7f3e2c9b1d4f6a8e5c2b9f3d7a1e4c6b8f2d5a9e3c7f1b4d8a2e6c9f3a5b7"}', alert.freq_once_per_bar_close)
     else
         strategy.entry("Short", strategy.short, qty=contractsS, limit=close + syminfo.mintick)
-        alert('{"symbol":"{{ticker}}","side":"sell","qty":{{strategy.order.contracts}},"price":{{close}},"order_id":"inv_short_entry","timestamp":"{{timenow}}"}', alert.freq_once_per_bar_close)
+        alert('{"symbol":"{{ticker}}","side":"sell","qty":{{strategy.order.contracts}},"price":{{close}},"order_id":"inv_short_entry","timestamp":"{{timenow}}","secret":"a7f3e2c9b1d4f6a8e5c2b9f3d7a1e4c6b8f2d5a9e3c7f1b4d8a2e6c9f3a5b7"}', alert.freq_once_per_bar_close)
 
 if (colorSentiment == color.maroon or colorSentiment == color.red) and barstate.isconfirmed and shortAllowed and cooldownOK
     entryBar := bar_index
     if not inv
         strategy.entry("Short", strategy.short, qty=contractsS, limit=close + syminfo.mintick)
-        alert('{"symbol":"{{ticker}}","side":"sell","qty":{{strategy.order.contracts}},"price":{{close}},"order_id":"short_entry","timestamp":"{{timenow}}"}', alert.freq_once_per_bar_close)
+        alert('{"symbol":"{{ticker}}","side":"sell","qty":{{strategy.order.contracts}},"price":{{close}},"order_id":"short_entry","timestamp":"{{timenow}}","secret":"a7f3e2c9b1d4f6a8e5c2b9f3d7a1e4c6b8f2d5a9e3c7f1b4d8a2e6c9f3a5b7"}', alert.freq_once_per_bar_close)
     else
         strategy.entry("Long", strategy.long, qty=contractsL, limit=close - syminfo.mintick)
-        alert('{"symbol":"{{ticker}}","side":"buy","qty":{{strategy.order.contracts}},"price":{{close}},"order_id":"inv_long_entry","timestamp":"{{timenow}}"}', alert.freq_once_per_bar_close)
+        alert('{"symbol":"{{ticker}}","side":"buy","qty":{{strategy.order.contracts}},"price":{{close}},"order_id":"inv_long_entry","timestamp":"{{timenow}}","secret":"a7f3e2c9b1d4f6a8e5c2b9f3d7a1e4c6b8f2d5a9e3c7f1b4d8a2e6c9f3a5b7"}', alert.freq_once_per_bar_close)
 
 // ===============================
 // RISK MANAGEMENT + ALERTS
 // ===============================
 if strategy.position_size > 0 and bar_index - entryBar == 1 and close <= strategy.position_avg_price - (slPoints * syminfo.mintick)/2
     strategy.close_all("Half SL")
-    alert('{"symbol":"{{ticker}}","side":"sell","qty":{{strategy.position_size}},"price":{{close}},"order_id":"half_sl","timestamp":"{{timenow}}"}', alert.freq_once_per_bar_close)
+    alert('{"symbol":"{{ticker}}","side":"sell","qty":{{strategy.position_size}},"price":{{close}},"order_id":"half_sl","timestamp":"{{timenow}}","secret":"a7f3e2c9b1d4f6a8e5c2b9f3d7a1e4c6b8f2d5a9e3c7f1b4d8a2e6c9f3a5b7"}', alert.freq_once_per_bar_close)
 
 if strategy.position_size < 0 and bar_index - entryBar == 1 and close >= strategy.position_avg_price + (slPoints * syminfo.mintick)/2
     strategy.close_all("Half SL")
-    alert('{"symbol":"{{ticker}}","side":"buy","qty":{{strategy.position_size}},"price":{{close}},"order_id":"half_sl","timestamp":"{{timenow}}"}', alert.freq_once_per_bar_close)
+    alert('{"symbol":"{{ticker}}","side":"buy","qty":{{strategy.position_size}},"price":{{close}},"order_id":"half_sl","timestamp":"{{timenow}}","secret":"a7f3e2c9b1d4f6a8e5c2b9f3d7a1e4c6b8f2d5a9e3c7f1b4d8a2e6c9f3a5b7"}', alert.freq_once_per_bar_close)
 
 strategy.exit("Exit Long", "Long", profit=tpPoints, loss=slPoints, trail_points=trailStart, trail_offset=trailOffset)
 strategy.exit("Exit Short", "Short", profit=tpPoints, loss=slPoints, trail_points=trailStart, trail_offset=trailOffset)
@@ -138,11 +138,11 @@ strategy.exit("Exit Short", "Short", profit=tpPoints, loss=slPoints, trail_point
 // Profit Protection
 if profitCheck and strategy.position_size > 0 and bar_index - entryBar >= profitBars and close < strategy.position_avg_price + (5 * syminfo.mintick)
     strategy.close_all("Not in Profit")
-    alert('{"symbol":"{{ticker}}","side":"sell","qty":{{strategy.position_size}},"price":{{close}},"order_id":"profit_protect_long","timestamp":"{{timenow}}"}', alert.freq_once_per_bar_close)
+    alert('{"symbol":"{{ticker}}","side":"sell","qty":{{strategy.position_size}},"price":{{close}},"order_id":"profit_protect_long","timestamp":"{{timenow}}","secret":"a7f3e2c9b1d4f6a8e5c2b9f3d7a1e4c6b8f2d5a9e3c7f1b4d8a2e6c9f3a5b7"}', alert.freq_once_per_bar_close)
 
 if profitCheck and strategy.position_size < 0 and bar_index - entryBar >= profitBars and close > strategy.position_avg_price - (5 * syminfo.mintick)
     strategy.close_all("Not in Profit")
-    alert('{"symbol":"{{ticker}}","side":"buy","qty":{{strategy.position_size}},"price":{{close}},"order_id":"profit_protect_short","timestamp":"{{timenow}}"}', alert.freq_once_per_bar_close)
+    alert('{"symbol":"{{ticker}}","side":"buy","qty":{{strategy.position_size}},"price":{{close}},"order_id":"profit_protect_short","timestamp":"{{timenow}}","secret":"a7f3e2c9b1d4f6a8e5c2b9f3d7a1e4c6b8f2d5a9e3c7f1b4d8a2e6c9f3a5b7"}', alert.freq_once_per_bar_close)
 
 // ===============================
 // MARKET CLOSE LOGIC + ALERT
@@ -152,7 +152,7 @@ bgcolor(isCloseTime ? #2195f35d : na, title="Market Close")
 
 if isCloseTime and enableClose and barstate.isconfirmed
     strategy.close_all("Market Close")
-    alert('{"symbol":"{{ticker}}","side":"{{strategy.position_size > 0 ? "sell" : "buy"}}","qty":{{strategy.position_size}},"price":{{close}},"order_id":"market_close","timestamp":"{{timenow}}"}', alert.freq_once_per_bar_close)
+    alert('{"symbol":"{{ticker}}","side":"{{strategy.position_size > 0 ? \'sell\' : \'buy\'}}","qty":{{strategy.position_size}},"price":{{close}},"order_id":"market_close","timestamp":"{{timenow}}","secret":"a7f3e2c9b1d4f6a8e5c2b9f3d7a1e4c6b8f2d5a9e3c7f1b4d8a2e6c9f3a5b7"}', alert.freq_once_per_bar_close)
 
 // ===============================
 // LOSS TRACKING
